@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://192.168.253.128:3306/user_center?useSSL=false #使用虚拟机模拟远程服务器（没钱）
+    username: root
+    password: root
+
+

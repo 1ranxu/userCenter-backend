@@ -87,15 +87,20 @@ public class UserController {
         return Result.success(safetyUser);
     }
 
-    @GetMapping("/query")
-    public Result userListQuery(String username, HttpServletRequest request) {
+    @PostMapping("/query")
+    public Result userListQuery(@RequestBody User user, HttpServletRequest request) {
         // 1 鉴权，仅管理员可查询
         if (!isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
         // 2 查询
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.isNotBlank(username)) {
-            wrapper.like(User::getUsername, username);
-        }
+        wrapper.like(StringUtils.isNotBlank(user.getUsername()), User::getUsername, user.getUsername());
+        wrapper.like(StringUtils.isNotBlank(user.getUserAccount()), User::getUserAccount, user.getUserAccount());
+        wrapper.like(StringUtils.isNotBlank(user.getPhone()), User::getPhone, user.getPhone());
+        wrapper.like(StringUtils.isNotBlank(user.getEmail()), User::getEmail, user.getEmail());
+        wrapper.like(StringUtils.isNotBlank(user.getAuthCode()), User::getAuthCode, user.getAuthCode());
+        wrapper.like(user.getGender() != null, User::getGender, user.getGender());
+        wrapper.like(user.getUserRole() != null, User::getUserRole, user.getUserRole());
+
         List<User> userList = userService.list(wrapper);
         List<User> collect = userList.stream().map(userService::getSafetyUser).collect(Collectors.toList());
         return Result.success(collect);

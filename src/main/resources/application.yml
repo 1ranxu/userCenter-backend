@@ -3,6 +3,11 @@ spring:
     name: user-cnter
   session:
     timeout: 86400 #session失效时间
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/user_center?useSSL=false
+    username: root
+    password: 123
 server:
   port: 8080
   servlet:

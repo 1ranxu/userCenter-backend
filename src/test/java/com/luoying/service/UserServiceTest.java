@@ -79,4 +79,17 @@ public class UserServiceTest {
         l = userService.userRegister(userAccount, userPassword, checkPassword,authCode);
         Assertions.assertTrue(l > 0);
     }
+    @Test
+    void userDelete(){
+        boolean b = userService.removeById(15);
+        System.out.println(b);
+    }
+    @Test
+    void userUpdate(){
+        User user = new User();
+        user.setId(15l);
+        user.setUsername("rxer");
+        userService.updateById(user);
+    }
+
 }

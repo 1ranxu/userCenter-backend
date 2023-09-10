@@ -1,23 +1,36 @@
 package com.luoying.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.luoying.common.ErrorCode;
 import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
+import com.luoying.model.dto.UserDTO;
 import com.luoying.service.UserService;
 import com.luoying.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.luoying.constant.RedisConstants.LOGIN_USER_KEY;
+import static com.luoying.constant.RedisConstants.LOGIN_USER_TTL;
 
 /**
  * 用户服务实现类
@@ -35,6 +48,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword, String authCode) {
@@ -90,11 +106,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public User userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public UserDTO userLogin(String userAccount, String userPassword, HttpServletResponse response) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
-            //    todo 修改为只定义异常
         }
         if (userAccount.length() < 4) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度小于4位");
@@ -121,38 +136,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
         }
         // 3 用户信息（脱敏）
-        User safetyUser = getSafetyUser(user);
-        // 4 记录用户的登录状态
-        HttpSession session = request.getSession();
-        session.setAttribute(UserConstant.USER_LOGIN_STATE, safetyUser);
-        // 5 返回
-        return safetyUser;
-    }
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
 
-    /**
-     * 用户拓明
-     *
-     * @param user
-     * @return
-     */
-    @Override
-    public User getSafetyUser(User user) {
-        if (user == null) {
-            throw new BusinessException(ErrorCode.NULL_ERROR, "用户空值");
-        }
-        User safetyUser = new User();
-        safetyUser.setId(user.getId());
-        safetyUser.setUserAccount(user.getUserAccount());
-        safetyUser.setUsername(user.getUsername());
-        safetyUser.setAvatarUrl(user.getAvatarUrl());
-        safetyUser.setGender(user.getGender());
-        safetyUser.setPhone(user.getPhone());
-        safetyUser.setEmail(user.getEmail());
-        safetyUser.setUserStatus(user.getUserStatus());
-        safetyUser.setCreateTime(user.getCreateTime());
-        safetyUser.setUserRole(user.getUserRole());
-        safetyUser.setAuthCode(user.getAuthCode());
-        return safetyUser;
+        //4 保存用户信息到 redis中
+        // 4.1.随机生成token，作为登录令牌
+        String token = UUID.randomUUID().toString(true);
+        //把token设置到userDTO,也返回给前端
+        userDTO.setToken(token);
+        // 4.2.将User对象转为HashMap存储
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
+        // 4.3.存储
+        String tokenKey = LOGIN_USER_KEY + token;
+        stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
+        // 4.4.设置token有效期
+        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MINUTES);
+        // 5 返回
+        return userDTO;
     }
 
     /**
@@ -163,8 +165,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public int userLogout(HttpServletRequest request) {
+        String tokenKey = LOGIN_USER_KEY + request.getHeader("authorization");
+        Set<Object> keys = stringRedisTemplate.opsForHash().keys(tokenKey);
         //移除登录态
-        request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
+        for (Object key : keys) {
+            stringRedisTemplate.opsForHash().delete(tokenKey,key);
+        }
         return 1;
     }
 }

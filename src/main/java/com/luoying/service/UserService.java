@@ -2,8 +2,10 @@ package com.luoying.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.luoying.model.domain.User;
+import com.luoying.model.dto.UserDTO;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author 落樱的悔恨
@@ -29,14 +31,7 @@ public interface UserService extends IService<User> {
      * @param userPassword 用户密码
      * @return 用户信息（脱敏）
      */
-    User userLogin(String userAccount, String userPassword, HttpServletRequest request);
-
-    /**
-     * 用户拓明
-     * @param user
-     * @return
-     */
-    public User getSafetyUser(User user);
+    UserDTO userLogin(String userAccount, String userPassword, HttpServletResponse response);
 
 
     int userLogout(HttpServletRequest request);

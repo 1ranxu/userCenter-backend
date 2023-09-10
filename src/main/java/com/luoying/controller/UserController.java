@@ -1,23 +1,30 @@
 package com.luoying.controller;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
+import com.luoying.model.dto.UserDTO;
 import com.luoying.model.request.UserLoginRequest;
 import com.luoying.model.request.UserRegisterRequest;
 import com.luoying.service.UserService;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.luoying.constant.RedisConstants.LOGIN_USER_KEY;
 import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -25,12 +32,15 @@ import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
  *
  * @author 落樱的悔恨
  */
+
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
     @Resource
     private UserService userService;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @PostMapping("/register")
     public Result userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
@@ -49,7 +59,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
+    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletResponse response) {
         if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象空值");
         }
@@ -58,8 +68,8 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
         }
-        User user = userService.userLogin(userAccount, userPassword, request);
-        return Result.success(user);
+        UserDTO userDTO = userService.userLogin(userAccount, userPassword,response);
+        return Result.success(userDTO);
     }
 
 
@@ -74,17 +84,29 @@ public class UserController {
 
     @GetMapping("/current")
     public Result getCurrentUser(HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        User currentUser = (User) session.getAttribute(USER_LOGIN_STATE);
-        if (currentUser == null) {
+        String token = request.getHeader("authorization");
+        // if (StrUtil.isBlank(token)) {
+        //     return true;
+        // }
+        //2基于token获取redis中的用户
+        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(LOGIN_USER_KEY + token);
+
+        //3判断用户是否存在
+        // if (entries.isEmpty()) {
+        //     // 4不存在
+        //     return true;
+        // }
+        //5将查询到的Hash数据转换为UserDTO对象
+        UserDTO userDTO1 = BeanUtil.fillBeanWithMap(entries, new UserDTO(), false);
+        if (userDTO1 == null) {
             throw new BusinessException(ErrorCode.NO_LOGIN, "用户未登录");
         }
-        Long userId = currentUser.getId();
+        Long userId = userDTO1.getId();
         //todo校验用户是否合法
         User user = userService.getById(userId);
-
-        User safetyUser = userService.getSafetyUser(user);
-        return Result.success(safetyUser);
+        //  用户信息（脱敏）
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+        return Result.success(userDTO);
     }
 
     @PostMapping("/query")
@@ -102,7 +124,9 @@ public class UserController {
         wrapper.like(user.getUserRole() != null, User::getUserRole, user.getUserRole());
 
         List<User> userList = userService.list(wrapper);
-        List<User> collect = userList.stream().map(userService::getSafetyUser).collect(Collectors.toList());
+        List<UserDTO> collect = userList.stream().map(user1 -> {
+            return BeanUtil.copyProperties(user1, UserDTO.class);
+        }).collect(Collectors.toList());
         return Result.success(collect);
     }
 
@@ -143,8 +167,20 @@ public class UserController {
      * @return
      */
     private boolean isAdmin(HttpServletRequest request) {
-        HttpSession session = request.getSession();
-        User user = (User) session.getAttribute(USER_LOGIN_STATE);
-        return user != null && user.getUserRole() == UserConstant.ADMIN_ROLE;
+        String token = request.getHeader("authorization");
+        // if (StrUtil.isBlank(token)) {
+        //     return true;
+        // }
+        //2基于token获取redis中的用户
+        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(LOGIN_USER_KEY + token);
+
+        //3判断用户是否存在
+        // if (entries.isEmpty()) {
+        //     // 4不存在
+        //     return true;
+        // }
+        //5将查询到的Hash数据转换为UserDTO对象
+        UserDTO userDTO = BeanUtil.fillBeanWithMap(entries, new UserDTO(), false);
+        return userDTO != null && userDTO.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 }

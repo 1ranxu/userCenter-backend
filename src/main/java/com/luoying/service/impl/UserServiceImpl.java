@@ -106,7 +106,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public UserDTO userLogin(String userAccount, String userPassword, HttpServletResponse response) {
+    public UserDTO userLogin(String userAccount, String userPassword) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
@@ -147,7 +147,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
                 CopyOptions.create()
                         .setIgnoreNullValue(true)
-                        .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
+                        .setFieldValueEditor((fieldName, fieldValue) -> {
+                            if (fieldValue==null){
+                                return "";
+                            }
+                            return fieldValue.toString();
+                        }));
         // 4.3.存储
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);

@@ -12,6 +12,7 @@ import com.luoying.model.dto.UserDTO;
 import com.luoying.model.request.UserLoginRequest;
 import com.luoying.model.request.UserRegisterRequest;
 import com.luoying.service.UserService;
+import com.luoying.utils.UserHolder;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -59,7 +60,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletResponse response) {
+    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest) {
         if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象空值");
         }
@@ -68,7 +69,7 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
         }
-        UserDTO userDTO = userService.userLogin(userAccount, userPassword,response);
+        UserDTO userDTO = userService.userLogin(userAccount, userPassword);
         return Result.success(userDTO);
     }
 
@@ -84,20 +85,7 @@ public class UserController {
 
     @GetMapping("/current")
     public Result getCurrentUser(HttpServletRequest request) {
-        String token = request.getHeader("authorization");
-        // if (StrUtil.isBlank(token)) {
-        //     return true;
-        // }
-        //2基于token获取redis中的用户
-        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(LOGIN_USER_KEY + token);
-
-        //3判断用户是否存在
-        // if (entries.isEmpty()) {
-        //     // 4不存在
-        //     return true;
-        // }
-        //5将查询到的Hash数据转换为UserDTO对象
-        UserDTO userDTO1 = BeanUtil.fillBeanWithMap(entries, new UserDTO(), false);
+        UserDTO userDTO1 = UserHolder.getUser();
         if (userDTO1 == null) {
             throw new BusinessException(ErrorCode.NO_LOGIN, "用户未登录");
         }
@@ -167,20 +155,7 @@ public class UserController {
      * @return
      */
     private boolean isAdmin(HttpServletRequest request) {
-        String token = request.getHeader("authorization");
-        // if (StrUtil.isBlank(token)) {
-        //     return true;
-        // }
-        //2基于token获取redis中的用户
-        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(LOGIN_USER_KEY + token);
-
-        //3判断用户是否存在
-        // if (entries.isEmpty()) {
-        //     // 4不存在
-        //     return true;
-        // }
-        //5将查询到的Hash数据转换为UserDTO对象
-        UserDTO userDTO = BeanUtil.fillBeanWithMap(entries, new UserDTO(), false);
+        UserDTO userDTO = UserHolder.getUser();
         return userDTO != null && userDTO.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 }

@@ -5,7 +5,7 @@ import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * @author 落樱的悔恨
@@ -33,7 +33,17 @@ public interface UserService extends IService<User> {
      */
     UserDTO userLogin(String userAccount, String userPassword);
 
-
+    /**
+     * 退出登录
+     * @param request
+     * @return
+     */
     int userLogout(HttpServletRequest request);
 
+    /**
+     *使用标签搜索用户
+     * @param tagList 用户传入的标签
+     * @return
+     */
+    List<UserDTO> queryUsersByTags(List<String> tagList);
 }

@@ -20,5 +20,5 @@ create table user_center.user
 
 )
     comment '用户表';
-#补充tags字段    
-alter table user add COLUMN tags varchar(1024) null comment '标签列表'
+#补充tags字段
+alter table user add COLUMN tags varchar(1024) null comment '标签列表Json'

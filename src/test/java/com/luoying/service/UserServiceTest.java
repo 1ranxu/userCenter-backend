@@ -1,11 +1,15 @@
 package com.luoying.service;
 
 import com.luoying.model.domain.User;
+import com.luoying.model.dto.UserDTO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 用户服务测试
@@ -92,4 +96,12 @@ public class UserServiceTest {
         userService.updateById(user);
     }
 
+    @Test
+    void queryUsersByTags() {
+        List<String> tagList=new ArrayList<>();
+        Collections.addAll(tagList,"Java","C++","Go");
+        List<UserDTO> userDTOS = userService.queryUsersByTags(tagList);
+        Assertions.assertNotNull(userDTOS);
+        System.out.println(userDTOS);
+    }
 }

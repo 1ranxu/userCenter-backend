@@ -2,11 +2,14 @@ package com.luoying.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
+import com.google.gson.TypeAdapter;
+import com.google.gson.reflect.TypeToken;
 import com.luoying.common.ErrorCode;
-import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
@@ -20,14 +23,11 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.luoying.constant.RedisConstants.LOGIN_USER_KEY;
 import static com.luoying.constant.RedisConstants.LOGIN_USER_TTL;
@@ -148,7 +148,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 CopyOptions.create()
                         .setIgnoreNullValue(true)
                         .setFieldValueEditor((fieldName, fieldValue) -> {
-                            if (fieldValue==null){
+                            if (fieldValue == null) {
                                 return "";
                             }
                             return fieldValue.toString();
@@ -174,9 +174,53 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         Set<Object> keys = stringRedisTemplate.opsForHash().keys(tokenKey);
         //移除登录态
         for (Object key : keys) {
-            stringRedisTemplate.opsForHash().delete(tokenKey,key);
+            stringRedisTemplate.opsForHash().delete(tokenKey, key);
         }
         return 1;
+    }
+
+
+    /**
+     * 使用标签搜索用户
+     *
+     * @param tagList 用户传入的标签
+     * @return
+     */
+    @Override
+    public List<UserDTO> queryUsersByTags(List<String> tagList) {
+        //判空
+        if (CollectionUtil.isEmpty(tagList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签不能为空");
+        }
+
+        /*//SQL模糊查询
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+
+        for (String tag : tagList) {
+            queryWrapper.like(StringUtils.isNotBlank(tag),User::getTags,tag);
+        }
+        List<User> users = userMapper.selectList(queryWrapper);
+        //脱敏
+        return users.stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());*/
+        
+        //内存查询
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        //查询所有用户
+        List<User> users = userMapper.selectList(queryWrapper);
+        Gson gson = new Gson();
+        return users.stream().filter(user -> {
+            if (StringUtils.isBlank(user.getTags()))
+                return false;
+            //过滤
+            Set<String> tempTagSet = gson.fromJson(user.getTags(), new TypeToken<Set<String>>() {
+            }.getType());
+            for (String tag : tagList) {
+                if (!tempTagSet.contains(tag))
+                    return false;
+            }
+            return true;
+        }).map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+
     }
 }
 

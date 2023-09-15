@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS user;
+
 create table user_center.user
 (
     id           bigint auto_increment comment '(主键) '
@@ -15,6 +17,8 @@ create table user_center.user
     isDeleted    tinyint  default 0                 not null comment '用户是否删除',
     userRole     int      default 0                 not null comment '用户角色 0-普通用户 1-管理员',
     authCode     varchar(512)                       null comment '付费系统编号，用于校验用户'
+
 )
     comment '用户表';
-
+#补充tags字段    
+alter table user add COLUMN tags varchar(1024) null comment '标签列表'

@@ -18,10 +18,16 @@ spring:
         max-idle: 10
         min-idle: 1
         time-between-eviction-runs: 10s
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+
 server:
   port: 8080
   servlet:
     context-path: /api #设置路径前缀与前端一致，默认是/
+
 
 mybatis-plus:
   configuration:

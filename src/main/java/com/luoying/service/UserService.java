@@ -45,5 +45,7 @@ public interface UserService extends IService<User> {
      * @param tagList 用户传入的标签
      * @return
      */
-    List<UserDTO> queryUsersByTags(List<String> tagList);
+    List<UserDTO> queryUsersByTagsByMemory(List<String> tagList);
+    List<UserDTO> queryUsersByTagsBySQL(List<String> tagList);
+
 }

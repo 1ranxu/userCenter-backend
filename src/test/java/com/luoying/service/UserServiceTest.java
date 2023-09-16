@@ -100,7 +100,7 @@ public class UserServiceTest {
     void queryUsersByTags() {
         List<String> tagList=new ArrayList<>();
         Collections.addAll(tagList,"Java","C++","Go");
-        List<UserDTO> userDTOS = userService.queryUsersByTags(tagList);
+        List<UserDTO> userDTOS = userService.queryUsersByTagsByMemory(tagList);
         Assertions.assertNotNull(userDTOS);
         System.out.println(userDTOS);
     }

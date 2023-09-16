@@ -181,39 +181,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
 
     /**
-     * 使用标签搜索用户
+     * 使用标签搜索用户(内存过滤）
      *
      * @param tagList 用户传入的标签
      * @return
      */
     @Override
-    public List<UserDTO> queryUsersByTags(List<String> tagList) {
+    public List<UserDTO> queryUsersByTagsByMemory(List<String> tagList) {
         //判空
         if (CollectionUtil.isEmpty(tagList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签不能为空");
         }
-
-        /*//SQL模糊查询
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-
-        for (String tag : tagList) {
-            queryWrapper.like(StringUtils.isNotBlank(tag),User::getTags,tag);
-        }
-        List<User> users = userMapper.selectList(queryWrapper);
-        //脱敏
-        return users.stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());*/
-        
         //内存查询
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         //查询所有用户
         List<User> users = userMapper.selectList(queryWrapper);
         Gson gson = new Gson();
         return users.stream().filter(user -> {
-            if (StringUtils.isBlank(user.getTags()))
-                return false;
-            //过滤
             Set<String> tempTagSet = gson.fromJson(user.getTags(), new TypeToken<Set<String>>() {
             }.getType());
+            //有些用户的tags字段可能为空，要先判空，否则报控空指针异常
+            tempTagSet = Optional.ofNullable(tempTagSet).orElse(new HashSet<>());
+            //过滤
             for (String tag : tagList) {
                 if (!tempTagSet.contains(tag))
                     return false;
@@ -222,7 +211,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }).map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
 
     }
+
+    /**
+     * 使用标签搜索用户（SQL查询版）
+     *
+     * @param tagList 用户传入的标签
+     * @return
+     */
+    @Deprecated
+    public List<UserDTO> queryUsersByTagsBySQL(List<String> tagList) {
+        //判空
+        if (CollectionUtil.isEmpty(tagList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签不能为空");
+        }
+
+        //SQL模糊查询
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+
+        for (String tag : tagList) {
+            queryWrapper.like(StringUtils.isNotBlank(tag), User::getTags, tag);
+        }
+        List<User> users = userMapper.selectList(queryWrapper);
+        //脱敏
+        return users.stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+    }
 }
+
+
+
 
 
 

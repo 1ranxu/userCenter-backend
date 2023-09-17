@@ -16,10 +16,13 @@ public class MvcConfig implements WebMvcConfigurer {
     private StringRedisTemplate stringRedisTemplate;
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // 对swagger的请求不进行拦截
+        String[] excludePatterns = new String[]{"/swagger-resources/**", "/swagger-resources","/webjars/**", "/v2/**", "/swagger-ui.html/**",
+                "/api", "/api-docs", "/api-docs/**", "/doc.html","/doc.html#/**"};
         registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
         registry.addInterceptor(new LoginInterceptor()).excludePathPatterns(
                 "/user/login",
                 "/user/register"
-        ).order(1);
+        ).excludePathPatterns(excludePatterns).order(1);
     }
 }

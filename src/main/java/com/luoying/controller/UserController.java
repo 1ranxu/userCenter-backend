@@ -1,6 +1,7 @@
 package com.luoying.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luoying.common.ErrorCode;
@@ -33,7 +34,7 @@ import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
  *
  * @author 落樱的悔恨
  */
-
+@CrossOrigin(origins = {"http://localhost:5173"})
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -146,6 +147,14 @@ public class UserController {
         //更新，前端传过来的数据有就更新，没有就保持默认
         boolean result = userService.updateById(user);
         return Result.success(result);
+    }
+
+    @GetMapping("/searchByTags")
+    public Result searchByTags(@RequestParam(required = false) List<String> tags){
+        if (CollectionUtil.isEmpty(tags)){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"标签为空");
+        }
+        return Result.success(userService.queryUsersByTagsByMemory(tags));
     }
 
     /**

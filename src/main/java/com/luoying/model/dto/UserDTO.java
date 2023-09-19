@@ -31,6 +31,8 @@ public class UserDTO implements Serializable {
 
     private String tags;
 
+    private String profile;
+
     private String token;
 
     private static final long serialVersionUID = 1L;

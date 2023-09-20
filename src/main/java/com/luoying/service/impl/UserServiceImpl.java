@@ -1,20 +1,17 @@
 package com.luoying.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
-import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
 import com.luoying.common.ErrorCode;
 import com.luoying.exception.BusinessException;
+import com.luoying.mapper.UserMapper;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
 import com.luoying.service.UserService;
-import com.luoying.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,14 +20,15 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.luoying.constant.RedisConstants.LOGIN_USER_KEY;
-import static com.luoying.constant.RedisConstants.LOGIN_USER_TTL;
+import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * 用户服务实现类
@@ -48,9 +46,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Resource
     private UserMapper userMapper;
-
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword, String authCode) {
@@ -106,7 +101,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public UserDTO userLogin(String userAccount, String userPassword) {
+    public UserDTO userLogin(String userAccount, String userPassword,HttpServletRequest request) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
@@ -137,27 +132,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         // 3 用户信息（脱敏）
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-
-        //4 保存用户信息到 redis中
-        // 4.1.随机生成token，作为登录令牌
-        String token = UUID.randomUUID().toString(true);
-        //把token设置到userDTO,也返回给前端
-        userDTO.setToken(token);
-        // 4.2.将User对象转为HashMap存储
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
-                CopyOptions.create()
-                        .setIgnoreNullValue(true)
-                        .setFieldValueEditor((fieldName, fieldValue) -> {
-                            if (fieldValue == null) {
-                                return "";
-                            }
-                            return fieldValue.toString();
-                        }));
-        // 4.3.存储
-        String tokenKey = LOGIN_USER_KEY + token;
-        stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
-        // 4.4.设置token有效期
-        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MINUTES);
+        //4 存储到session
+        request.getSession().setAttribute(USER_LOGIN_STATE,userDTO);
         // 5 返回
         return userDTO;
     }
@@ -170,12 +146,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public int userLogout(HttpServletRequest request) {
-        String tokenKey = LOGIN_USER_KEY + request.getHeader("authorization");
-        Set<Object> keys = stringRedisTemplate.opsForHash().keys(tokenKey);
         //移除登录态
-        for (Object key : keys) {
-            stringRedisTemplate.opsForHash().delete(tokenKey, key);
-        }
+        request.getSession().removeAttribute(USER_LOGIN_STATE);
         return 1;
     }
 

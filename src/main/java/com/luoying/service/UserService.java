@@ -31,7 +31,7 @@ public interface UserService extends IService<User> {
      * @param userPassword 用户密码
      * @return 用户信息（脱敏）
      */
-    UserDTO userLogin(String userAccount, String userPassword);
+    UserDTO userLogin(String userAccount, String userPassword,HttpServletRequest request);
 
     /**
      * 退出登录

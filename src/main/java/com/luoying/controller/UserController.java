@@ -2,7 +2,6 @@ package com.luoying.controller;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
@@ -20,21 +19,15 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
-
-import static com.luoying.constant.RedisConstants.LOGIN_USER_KEY;
-import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * 用户接口
  *
  * @author 落樱的悔恨
  */
-@CrossOrigin(origins = {"http://localhost:5173"})
+@CrossOrigin(origins = {"http://localhost:5173","http://localhost:8000"})
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -61,7 +54,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest) {
+    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest,HttpServletRequest request) {
         if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象空值");
         }
@@ -70,7 +63,7 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
         }
-        UserDTO userDTO = userService.userLogin(userAccount, userPassword);
+        UserDTO userDTO = userService.userLogin(userAccount, userPassword,request);
         return Result.success(userDTO);
     }
 
@@ -91,7 +84,7 @@ public class UserController {
             throw new BusinessException(ErrorCode.NO_LOGIN, "用户未登录");
         }
         Long userId = userDTO1.getId();
-        //todo校验用户是否合法
+        //查询最新的用户信息
         User user = userService.getById(userId);
         //  用户信息（脱敏）
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);

@@ -21,7 +21,6 @@ public class LoginInterceptor implements HandlerInterceptor {
             return false;
         }
         // 有用户，则放行
-        UserHolder.saveUser(userDTO);
         return true;
     }
 }

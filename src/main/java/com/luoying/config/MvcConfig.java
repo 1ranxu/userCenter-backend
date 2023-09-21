@@ -21,6 +21,6 @@ public class MvcConfig implements WebMvcConfigurer {
                 "/user/login",
                 "/user/register",
                 "/user/searchByTags"
-        ).excludePathPatterns(excludePatterns).order(1);
+        ).excludePathPatterns(excludePatterns).order(0);
     }
 }

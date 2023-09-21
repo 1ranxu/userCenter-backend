@@ -3,6 +3,8 @@ package com.luoying.controller;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.exception.BusinessException;
@@ -27,7 +29,7 @@ import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
  *
  * @author 落樱的悔恨
  */
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:8000"},allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:8000"}, allowCredentials = "true")
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -103,6 +105,7 @@ public class UserController {
         wrapper.like(StringUtils.isNotBlank(user.getPhone()), User::getPhone, user.getPhone());
         wrapper.like(StringUtils.isNotBlank(user.getEmail()), User::getEmail, user.getEmail());
         wrapper.like(StringUtils.isNotBlank(user.getAuthCode()), User::getAuthCode, user.getAuthCode());
+        wrapper.like(StringUtils.isNotBlank(user.getProfile()), User::getProfile, user.getProfile());
         wrapper.like(user.getGender() != null, User::getGender, user.getGender());
         wrapper.like(user.getUserRole() != null, User::getUserRole, user.getUserRole());
 
@@ -111,6 +114,18 @@ public class UserController {
             return BeanUtil.copyProperties(user1, UserDTO.class);
         }).collect(Collectors.toList());
         return Result.success(collect);
+    }
+
+
+    @GetMapping("/recommend")
+    public Result usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper();
+        Page<User> page = userService.page(new Page<User>(currentPage, pageSize), wrapper);
+
+        List<UserDTO> userDTOList = page.getRecords().stream().map(user1 -> {
+            return BeanUtil.copyProperties(user1, UserDTO.class);
+        }).collect(Collectors.toList());
+        return Result.success(userDTOList);
     }
 
     @PostMapping("/delete")
@@ -127,13 +142,13 @@ public class UserController {
 
     @PostMapping("/update")
     public Result userUpdate(@RequestBody User user, HttpServletRequest request) {
-        if (user == null){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"修改用户为空");
+        if (user == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "修改用户为空");
         }
         //todo如果用户没有传任何要更新的值，直接抛异常
         UserDTO loginUser = userService.getLoginUser(request);
         //更新，前端传过来的数据有就更新，没有就保持默认
-        int result = userService.updateUser(user,loginUser);
+        int result = userService.updateUser(user, loginUser);
         return Result.success(result);
     }
 

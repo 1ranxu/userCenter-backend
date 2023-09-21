@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.luoying.common.ErrorCode;
+import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.mapper.UserMapper;
 import com.luoying.model.domain.User;
@@ -14,7 +15,6 @@ import com.luoying.model.dto.UserDTO;
 import com.luoying.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
@@ -101,7 +101,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public UserDTO userLogin(String userAccount, String userPassword,HttpServletRequest request) {
+    public UserDTO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
@@ -133,7 +133,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 3 用户信息（脱敏）
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         //4 存储到session
-        request.getSession().setAttribute(USER_LOGIN_STATE,userDTO);
+        request.getSession().setAttribute(USER_LOGIN_STATE, userDTO);
         // 5 返回
         return userDTO;
     }
@@ -206,6 +206,53 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         List<User> users = userMapper.selectList(queryWrapper);
         //脱敏
         return users.stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+    }
+
+    @Override
+    public int updateUser(User user, UserDTO loginUser) {
+        Long userId = user.getId();
+        if (userId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //如果不是管理员，又不是修改自己的信息，就报错
+        if (!isAdmin(loginUser) && userId != loginUser.getId()) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        User dbUser = userMapper.selectById(userId);
+        if (dbUser == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        return userMapper.updateById(user);
+    }
+
+    @Override
+    public UserDTO getLoginUser(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "HttpServletRequest空值");
+        }
+
+        UserDTO loginUser = (UserDTO) request.getSession().getAttribute(USER_LOGIN_STATE);
+
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NO_LOGIN, "未登录");
+        }
+        return loginUser;
+    }
+
+    /**
+     * 是否为管理员
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public boolean isAdmin(HttpServletRequest request) {
+        UserDTO loginUser = (UserDTO) request.getSession().getAttribute(USER_LOGIN_STATE);
+        return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
+    }
+    @Override
+    public boolean isAdmin(UserDTO loginUser) {
+        return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 }
 

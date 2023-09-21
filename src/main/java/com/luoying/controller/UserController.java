@@ -5,14 +5,12 @@ import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
-import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
 import com.luoying.model.request.UserLoginRequest;
 import com.luoying.model.request.UserRegisterRequest;
 import com.luoying.service.UserService;
-import com.luoying.utils.UserHolder;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -22,12 +20,14 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
+
 /**
  * 用户接口
  *
  * @author 落樱的悔恨
  */
-@CrossOrigin(origins = {"http://localhost:5173","http://localhost:8000"})
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:8000"},allowCredentials = "true")
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -54,7 +54,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest,HttpServletRequest request) {
+    public Result userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         if (userLoginRequest == null) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象空值");
         }
@@ -63,7 +63,7 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
         }
-        UserDTO userDTO = userService.userLogin(userAccount, userPassword,request);
+        UserDTO userDTO = userService.userLogin(userAccount, userPassword, request);
         return Result.success(userDTO);
     }
 
@@ -79,13 +79,14 @@ public class UserController {
 
     @GetMapping("/current")
     public Result getCurrentUser(HttpServletRequest request) {
-        UserDTO userDTO1 = UserHolder.getUser();
-        if (userDTO1 == null) {
+        //获取登录用户
+        UserDTO loginUser = userService.getLoginUser(request);
+        if (loginUser == null) {
             throw new BusinessException(ErrorCode.NO_LOGIN, "用户未登录");
         }
-        Long userId = userDTO1.getId();
+        Long loginUserId = loginUser.getId();
         //查询最新的用户信息
-        User user = userService.getById(userId);
+        User user = userService.getById(loginUserId);
         //  用户信息（脱敏）
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         return Result.success(userDTO);
@@ -94,7 +95,7 @@ public class UserController {
     @PostMapping("/query")
     public Result userListQuery(@RequestBody User user, HttpServletRequest request) {
         // 1 鉴权，仅管理员可查询
-        if (!isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
+        if (!userService.isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
         // 2 查询
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StringUtils.isNotBlank(user.getUsername()), User::getUsername, user.getUsername());
@@ -115,7 +116,7 @@ public class UserController {
     @PostMapping("/delete")
     public Result userDelete(@RequestBody User user, HttpServletRequest request) {
         // 1 鉴权，仅管理员可删除
-        if (!isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
+        if (!userService.isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
         //2 删除
         if (user.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "删除用户的id不能为小于等于0");
@@ -126,38 +127,21 @@ public class UserController {
 
     @PostMapping("/update")
     public Result userUpdate(@RequestBody User user, HttpServletRequest request) {
-        // 1 鉴权，仅管理员可更新
-        if (!isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
-        //2 获取更新用户
-        if (user.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "更新用户的id不能为小于等于0");
+        if (user == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"修改用户为空");
         }
-        User originUser = userService.getById(user.getId());
-        //判断用户是否存在
-        if (originUser == null) {
-            throw new BusinessException(ErrorCode.NULL_ERROR, "用户不存在");
-        }
+        //todo如果用户没有传任何要更新的值，直接抛异常
+        UserDTO loginUser = userService.getLoginUser(request);
         //更新，前端传过来的数据有就更新，没有就保持默认
-        boolean result = userService.updateById(user);
+        int result = userService.updateUser(user,loginUser);
         return Result.success(result);
     }
 
     @GetMapping("/searchByTags")
-    public Result searchByTags(@RequestParam(required = false) List<String> tags){
-        if (CollectionUtil.isEmpty(tags)){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"标签为空");
+    public Result searchByTags(@RequestParam(required = false) List<String> tags) {
+        if (CollectionUtil.isEmpty(tags)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签为空");
         }
         return Result.success(userService.queryUsersByTagsByMemory(tags));
-    }
-
-    /**
-     * 是否为管理员
-     *
-     * @param request
-     * @return
-     */
-    private boolean isAdmin(HttpServletRequest request) {
-        UserDTO userDTO = UserHolder.getUser();
-        return userDTO != null && userDTO.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 }

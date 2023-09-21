@@ -48,4 +48,26 @@ public interface UserService extends IService<User> {
     List<UserDTO> queryUsersByTagsByMemory(List<String> tagList);
     List<UserDTO> queryUsersByTagsBySQL(List<String> tagList);
 
+    /**更新用户信息
+     *
+     * @param user
+     * @return
+     */
+    int updateUser(User user,UserDTO loginUser);
+
+    /**
+     * 获取当前登录用户
+     * @param request
+     * @return
+     */
+    UserDTO getLoginUser(HttpServletRequest request);
+
+    /**
+     * 判断当前登录用户是否是管理员
+     * @param request
+     * @return
+     */
+    boolean isAdmin(HttpServletRequest request);
+    boolean isAdmin(UserDTO loginUser);
+
 }

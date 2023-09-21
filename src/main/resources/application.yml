@@ -15,7 +15,6 @@ server:
   servlet:
     context-path: /api #设置路径前缀与前端一致，默认是/
 
-
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false

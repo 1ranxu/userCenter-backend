@@ -3,8 +3,6 @@ package com.luoying.controller;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.exception.BusinessException;
@@ -14,15 +12,12 @@ import com.luoying.model.request.UserLoginRequest;
 import com.luoying.model.request.UserRegisterRequest;
 import com.luoying.service.UserService;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * 用户接口
@@ -36,8 +31,7 @@ public class UserController {
 
     @Resource
     private UserService userService;
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
+
 
     @PostMapping("/register")
     public Result userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
@@ -119,13 +113,8 @@ public class UserController {
 
     @GetMapping("/recommend")
     public Result usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper();
-        Page<User> page = userService.page(new Page<User>(currentPage, pageSize), wrapper);
-
-        List<UserDTO> userDTOList = page.getRecords().stream().map(user1 -> {
-            return BeanUtil.copyProperties(user1, UserDTO.class);
-        }).collect(Collectors.toList());
-        return Result.success(userDTOList);
+        //返回数据
+        return Result.success(userService.usersRecommend(currentPage, pageSize, request));
     }
 
     @PostMapping("/delete")

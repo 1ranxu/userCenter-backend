@@ -70,4 +70,13 @@ public interface UserService extends IService<User> {
     boolean isAdmin(HttpServletRequest request);
     boolean isAdmin(UserDTO loginUser);
 
+    /**主页推荐
+     *
+     * @param currentPage
+     * @param pageSize
+     * @param request
+     * @return
+     */
+    List<UserDTO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request);
+
 }

@@ -2,7 +2,10 @@ package com.luoying.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -15,19 +18,19 @@ import com.luoying.model.dto.UserDTO;
 import com.luoying.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.luoying.constant.RedisConstant.RECOMMEND_USUERS_KEY;
 import static com.luoying.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -46,6 +49,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword, String authCode) {
@@ -253,6 +259,39 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public boolean isAdmin(UserDTO loginUser) {
         return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
+    }
+
+    @Override
+    public List<UserDTO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
+        //获取当前登录用户
+        UserDTO loginUser = this.getLoginUser(request);
+        //拼接key
+        String key = RECOMMEND_USUERS_KEY + loginUser.getId();
+        //读取缓存
+        String userDTOListJson = stringRedisTemplate.opsForValue().get(key);
+        //反序列化
+        JSONArray objects = JSONUtil.parseArray(userDTOListJson);
+        //遍历数组，把user添加到List集合
+        Iterator<Object> iterator = objects.stream().iterator();
+        List userDTOList = new ArrayList();
+        while (iterator.hasNext()) {
+            userDTOList.add(iterator.next());
+        }
+        //如果有缓存直接读缓存
+        if (userDTOList != null && !userDTOList.isEmpty()) {
+            return userDTOList;
+        }
+        //如果有没缓存查数据库
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper();
+        Page<User> page = this.page(new Page<User>(currentPage, pageSize), wrapper);
+
+        userDTOList = page.getRecords().stream().map(user1 -> {
+            return BeanUtil.copyProperties(user1, UserDTO.class);
+        }).collect(Collectors.toList());
+        //将查询到的数据添加到缓存
+        userDTOListJson = JSONUtil.toJsonStr(userDTOList);
+        stringRedisTemplate.opsForValue().set(key, userDTOListJson,3, TimeUnit.MINUTES);
+        return userDTOList;
     }
 }
 

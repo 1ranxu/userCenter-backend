@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
@@ -15,6 +16,8 @@ import com.luoying.exception.BusinessException;
 import com.luoying.mapper.UserMapper;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
+import com.luoying.model.request.UserQueryRequest;
+import com.luoying.model.vo.UserListVO;
 import com.luoying.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -144,6 +147,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return userDTO;
     }
 
+    @Override
+    public UserListVO userListQuery(UserQueryRequest userQueryRequest, HttpServletRequest request) {
+        // 鉴权，仅管理员可查询
+        if (!this.isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
+        //构造分页条件
+        User user = BeanUtil.copyProperties(userQueryRequest, User.class);
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper();
+        wrapper.like(StringUtils.isNotBlank(user.getUsername()), User::getUsername, user.getUsername());
+        wrapper.like(StringUtils.isNotBlank(user.getUserAccount()), User::getUserAccount, user.getUserAccount());
+        wrapper.like(StringUtils.isNotBlank(user.getPhone()), User::getPhone, user.getPhone());
+        wrapper.like(StringUtils.isNotBlank(user.getEmail()), User::getEmail, user.getEmail());
+        wrapper.like(StringUtils.isNotBlank(user.getAuthCode()), User::getAuthCode, user.getAuthCode());
+        wrapper.like(StringUtils.isNotBlank(user.getProfile()), User::getProfile, user.getProfile());
+        wrapper.like(user.getGender() != null, User::getGender, user.getGender());
+        wrapper.like(user.getUserRole() != null, User::getUserRole, user.getUserRole());
+        IPage<User> page = new Page<>(userQueryRequest.getPage(), userQueryRequest.getPageSize());
+        this.page(page, wrapper);
+        //脱敏
+        List userDTOList = page.getRecords().stream().map(user1 -> {
+            return BeanUtil.copyProperties(user1, UserDTO.class);
+        }).collect(Collectors.toList());
+        //将查询到的数据封装到UserListVO
+        UserListVO userListVO = new UserListVO();
+        userListVO.setUserList(userDTOList);
+        userListVO.setTotal(page.getTotal());
+        //返回
+        return userListVO;
+    }
+
+
     /**
      * 用户注销
      *
@@ -256,6 +289,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         UserDTO loginUser = (UserDTO) request.getSession().getAttribute(USER_LOGIN_STATE);
         return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
     }
+
     @Override
     public boolean isAdmin(UserDTO loginUser) {
         return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
@@ -290,7 +324,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }).collect(Collectors.toList());
         //将查询到的数据添加到缓存
         userDTOListJson = JSONUtil.toJsonStr(userDTOList);
-        stringRedisTemplate.opsForValue().set(key, userDTOListJson,3, TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(key, userDTOListJson, 3, TimeUnit.MINUTES);
         return userDTOList;
     }
 }

@@ -2,14 +2,15 @@ package com.luoying.controller;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
 import com.luoying.model.request.UserLoginRequest;
+import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.request.UserRegisterRequest;
+import com.luoying.model.vo.UserListVO;
 import com.luoying.service.UserService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 用户接口
@@ -89,25 +89,9 @@ public class UserController {
     }
 
     @PostMapping("/query")
-    public Result userListQuery(@RequestBody User user, HttpServletRequest request) {
-        // 1 鉴权，仅管理员可查询
-        if (!userService.isAdmin(request)) throw new BusinessException(ErrorCode.NO_AUTH, "用户无权限");
-        // 2 查询
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.isNotBlank(user.getUsername()), User::getUsername, user.getUsername());
-        wrapper.like(StringUtils.isNotBlank(user.getUserAccount()), User::getUserAccount, user.getUserAccount());
-        wrapper.like(StringUtils.isNotBlank(user.getPhone()), User::getPhone, user.getPhone());
-        wrapper.like(StringUtils.isNotBlank(user.getEmail()), User::getEmail, user.getEmail());
-        wrapper.like(StringUtils.isNotBlank(user.getAuthCode()), User::getAuthCode, user.getAuthCode());
-        wrapper.like(StringUtils.isNotBlank(user.getProfile()), User::getProfile, user.getProfile());
-        wrapper.like(user.getGender() != null, User::getGender, user.getGender());
-        wrapper.like(user.getUserRole() != null, User::getUserRole, user.getUserRole());
-
-        List<User> userList = userService.list(wrapper);
-        List<UserDTO> collect = userList.stream().map(user1 -> {
-            return BeanUtil.copyProperties(user1, UserDTO.class);
-        }).collect(Collectors.toList());
-        return Result.success(collect);
+    public Result userListQuery(@RequestBody UserQueryRequest userQueryRequest, HttpServletRequest request) {
+        UserListVO userListVO = userService.userListQuery(userQueryRequest, request);
+        return Result.success(userListVO);
     }
 
 

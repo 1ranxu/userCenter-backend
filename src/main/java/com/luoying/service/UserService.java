@@ -3,6 +3,8 @@ package com.luoying.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.luoying.model.domain.User;
 import com.luoying.model.dto.UserDTO;
+import com.luoying.model.request.UserQueryRequest;
+import com.luoying.model.vo.UserListVO;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -33,6 +35,13 @@ public interface UserService extends IService<User> {
      */
     UserDTO userLogin(String userAccount, String userPassword,HttpServletRequest request);
 
+    /**
+     * 管理员查询用户
+     * @param userQueryRequest
+     * @param request
+     * @return
+     */
+    UserListVO userListQuery(UserQueryRequest userQueryRequest, HttpServletRequest request);
     /**
      * 退出登录
      * @param request

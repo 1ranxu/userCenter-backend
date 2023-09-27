@@ -2,7 +2,7 @@ package com.luoying.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.luoying.model.domain.User;
-import com.luoying.model.dto.UserDTO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.vo.UserListVO;
 
@@ -33,7 +33,7 @@ public interface UserService extends IService<User> {
      * @param userPassword 用户密码
      * @return 用户信息（脱敏）
      */
-    UserDTO userLogin(String userAccount, String userPassword,HttpServletRequest request);
+    UserVO userLogin(String userAccount, String userPassword, HttpServletRequest request);
 
     /**
      * 管理员查询用户
@@ -54,22 +54,22 @@ public interface UserService extends IService<User> {
      * @param tagList 用户传入的标签
      * @return
      */
-    List<UserDTO> queryUsersByTagsByMemory(List<String> tagList);
-    List<UserDTO> queryUsersByTagsBySQL(List<String> tagList);
+    List<UserVO> queryUsersByTagsByMemory(List<String> tagList);
+    List<UserVO> queryUsersByTagsBySQL(List<String> tagList);
 
     /**更新用户信息
      *
      * @param user
      * @return
      */
-    int updateUser(User user,UserDTO loginUser);
+    int updateUser(User user, UserVO loginUser);
 
     /**
      * 获取当前登录用户
      * @param request
      * @return
      */
-    UserDTO getLoginUser(HttpServletRequest request);
+    UserVO getLoginUser(HttpServletRequest request);
 
     /**
      * 判断当前登录用户是否是管理员
@@ -77,7 +77,7 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean isAdmin(HttpServletRequest request);
-    boolean isAdmin(UserDTO loginUser);
+    boolean isAdmin(UserVO loginUser);
 
     /**主页推荐
      *
@@ -86,6 +86,6 @@ public interface UserService extends IService<User> {
      * @param request
      * @return
      */
-    List<UserDTO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request);
+    List<UserVO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request);
 
 }

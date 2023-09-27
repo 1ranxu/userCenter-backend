@@ -6,7 +6,7 @@ import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.exception.BusinessException;
 import com.luoying.model.domain.User;
-import com.luoying.model.dto.UserDTO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.model.request.UserLoginRequest;
 import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.request.UserRegisterRequest;
@@ -59,8 +59,8 @@ public class UserController {
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
         }
-        UserDTO userDTO = userService.userLogin(userAccount, userPassword, request);
-        return Result.success(userDTO);
+        UserVO userVO = userService.userLogin(userAccount, userPassword, request);
+        return Result.success(userVO);
     }
 
 
@@ -76,7 +76,7 @@ public class UserController {
     @GetMapping("/current")
     public Result getCurrentUser(HttpServletRequest request) {
         //获取登录用户
-        UserDTO loginUser = userService.getLoginUser(request);
+        UserVO loginUser = userService.getLoginUser(request);
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.NO_LOGIN, "用户未登录");
         }
@@ -84,8 +84,8 @@ public class UserController {
         //查询最新的用户信息
         User user = userService.getById(loginUserId);
         //  用户信息（脱敏）
-        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        return Result.success(userDTO);
+        UserVO userVO = BeanUtil.copyProperties(user, UserVO.class);
+        return Result.success(userVO);
     }
 
     @PostMapping("/query")
@@ -119,7 +119,7 @@ public class UserController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "修改用户为空");
         }
         //todo如果用户没有传任何要更新的值，直接抛异常
-        UserDTO loginUser = userService.getLoginUser(request);
+        UserVO loginUser = userService.getLoginUser(request);
         //更新，前端传过来的数据有就更新，没有就保持默认
         int result = userService.updateUser(user, loginUser);
         return Result.success(result);

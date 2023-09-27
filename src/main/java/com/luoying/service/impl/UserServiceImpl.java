@@ -2,8 +2,7 @@ package com.luoying.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONUtil;
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -15,7 +14,7 @@ import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.mapper.UserMapper;
 import com.luoying.model.domain.User;
-import com.luoying.model.dto.UserDTO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.vo.UserListVO;
 import com.luoying.service.UserService;
@@ -110,7 +109,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public UserDTO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public UserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
@@ -140,11 +139,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
         }
         // 3 用户信息（脱敏）
-        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+        UserVO userVO = BeanUtil.copyProperties(user, UserVO.class);
         //4 存储到session
-        request.getSession().setAttribute(USER_LOGIN_STATE, userDTO);
+        request.getSession().setAttribute(USER_LOGIN_STATE, userVO);
         // 5 返回
-        return userDTO;
+        return userVO;
     }
 
     @Override
@@ -166,7 +165,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         this.page(page, wrapper);
         //脱敏
         List userDTOList = page.getRecords().stream().map(user1 -> {
-            return BeanUtil.copyProperties(user1, UserDTO.class);
+            return BeanUtil.copyProperties(user1, UserVO.class);
         }).collect(Collectors.toList());
         //将查询到的数据封装到UserListVO
         UserListVO userListVO = new UserListVO();
@@ -198,7 +197,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return
      */
     @Override
-    public List<UserDTO> queryUsersByTagsByMemory(List<String> tagList) {
+    public List<UserVO> queryUsersByTagsByMemory(List<String> tagList) {
         //判空
         if (CollectionUtil.isEmpty(tagList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签不能为空");
@@ -219,7 +218,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                     return false;
             }
             return true;
-        }).map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+        }).map(user -> BeanUtil.copyProperties(user, UserVO.class)).collect(Collectors.toList());
 
     }
 
@@ -230,7 +229,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return
      */
     @Deprecated
-    public List<UserDTO> queryUsersByTagsBySQL(List<String> tagList) {
+    public List<UserVO> queryUsersByTagsBySQL(List<String> tagList) {
         //判空
         if (CollectionUtil.isEmpty(tagList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签不能为空");
@@ -244,11 +243,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         List<User> users = userMapper.selectList(queryWrapper);
         //脱敏
-        return users.stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
+        return users.stream().map(user -> BeanUtil.copyProperties(user, UserVO.class)).collect(Collectors.toList());
     }
 
     @Override
-    public int updateUser(User user, UserDTO loginUser) {
+    public int updateUser(User user, UserVO loginUser) {
         Long userId = user.getId();
         if (userId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -265,12 +264,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public UserDTO getLoginUser(HttpServletRequest request) {
+    public UserVO getLoginUser(HttpServletRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR, "HttpServletRequest空值");
         }
 
-        UserDTO loginUser = (UserDTO) request.getSession().getAttribute(USER_LOGIN_STATE);
+        UserVO loginUser = (UserVO) request.getSession().getAttribute(USER_LOGIN_STATE);
 
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.NO_LOGIN, "未登录");
@@ -286,31 +285,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public boolean isAdmin(HttpServletRequest request) {
-        UserDTO loginUser = (UserDTO) request.getSession().getAttribute(USER_LOGIN_STATE);
+        UserVO loginUser = (UserVO) request.getSession().getAttribute(USER_LOGIN_STATE);
         return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 
     @Override
-    public boolean isAdmin(UserDTO loginUser) {
+    public boolean isAdmin(UserVO loginUser) {
         return loginUser != null && loginUser.getUserRole() == UserConstant.ADMIN_ROLE;
     }
 
     @Override
-    public List<UserDTO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
+    public List<UserVO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
         //获取当前登录用户
-        UserDTO loginUser = this.getLoginUser(request);
+        UserVO loginUser = this.getLoginUser(request);
         //拼接key
         String key = RECOMMEND_USUERS_KEY + loginUser.getId();
         //读取缓存
         String userDTOListJson = stringRedisTemplate.opsForValue().get(key);
         //反序列化
-        JSONArray objects = JSONUtil.parseArray(userDTOListJson);
-        //遍历数组，把user添加到List集合
-        Iterator<Object> iterator = objects.stream().iterator();
-        List userDTOList = new ArrayList();
-        while (iterator.hasNext()) {
-            userDTOList.add(iterator.next());
-        }
+        List userDTOList = JSON.parseObject(userDTOListJson, List.class);
         //如果有缓存直接读缓存
         if (userDTOList != null && !userDTOList.isEmpty()) {
             return userDTOList;
@@ -320,10 +313,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         Page<User> page = this.page(new Page<User>(currentPage, pageSize), wrapper);
 
         userDTOList = page.getRecords().stream().map(user1 -> {
-            return BeanUtil.copyProperties(user1, UserDTO.class);
+            return BeanUtil.copyProperties(user1, UserVO.class);
         }).collect(Collectors.toList());
         //将查询到的数据添加到缓存
-        userDTOListJson = JSONUtil.toJsonStr(userDTOList);
+        userDTOListJson = JSON.toJSONString(userDTOList);
         stringRedisTemplate.opsForValue().set(key, userDTOListJson, 3, TimeUnit.MINUTES);
         return userDTOList;
     }

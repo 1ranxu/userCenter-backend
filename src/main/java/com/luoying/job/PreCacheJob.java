@@ -5,7 +5,7 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.luoying.model.domain.User;
-import com.luoying.model.dto.UserDTO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -55,11 +55,11 @@ public class PreCacheJob {
                     LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper();
                     Page<User> page = userService.page(new Page<User>(1, 20), wrapper);
 
-                    List<UserDTO> userDTOList = page.getRecords().stream().map(user1 -> {
-                        return BeanUtil.copyProperties(user1, UserDTO.class);
+                    List<UserVO> userVOList = page.getRecords().stream().map(user1 -> {
+                        return BeanUtil.copyProperties(user1, UserVO.class);
                     }).collect(Collectors.toList());
                     //将查询到的数据添加到缓存
-                    String userDTOListJson = JSONUtil.toJsonStr(userDTOList);
+                    String userDTOListJson = JSONUtil.toJsonStr(userVOList);
                     stringRedisTemplate.opsForValue().set(key, userDTOListJson, RECOMMEND_USUERS_KEY_TTL, TimeUnit.MINUTES);
                 }
                 //只能释放自己加的锁

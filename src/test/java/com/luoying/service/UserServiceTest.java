@@ -1,7 +1,7 @@
 package com.luoying.service;
 
 import com.luoying.model.domain.User;
-import com.luoying.model.dto.UserDTO;
+import com.luoying.model.vo.UserVO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -100,8 +100,8 @@ public class UserServiceTest {
     void queryUsersByTags() {
         List<String> tagList=new ArrayList<>();
         Collections.addAll(tagList,"Java","C++","Go");
-        List<UserDTO> userDTOS = userService.queryUsersByTagsByMemory(tagList);
-        Assertions.assertNotNull(userDTOS);
-        System.out.println(userDTOS);
+        List<UserVO> userVOS = userService.queryUsersByTagsByMemory(tagList);
+        Assertions.assertNotNull(userVOS);
+        System.out.println(userVOS);
     }
 }

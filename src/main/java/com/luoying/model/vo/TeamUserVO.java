@@ -1,28 +1,24 @@
-package com.luoying.model.request;
+package com.luoying.model.vo;
 
-import com.luoying.common.PageRequest;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 /**
- * 队伍查询请求体
+ * 队伍和用户信息类
  *
  * @author 落樱的悔恨
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
-public class TeamQueryRequest extends PageRequest implements Serializable {
+public class TeamUserVO implements Serializable {
+    private static final long serialVersionUID = -8574846531196924704L;
     /**
      * id
      */
     private Long id;
-    /**
-     *
-     */
-    private String searchText;
+
     /**
      * 队伍名称
      */
@@ -53,4 +49,18 @@ public class TeamQueryRequest extends PageRequest implements Serializable {
      */
     private Integer status;
 
+    /**
+     * 创建时间
+     */
+    private Date createTime;
+
+    /**
+     * 更新时间
+     */
+    private Date updateTime;
+
+    /**
+     * 入队用户列表
+     */
+    private List<UserVO> userList;
 }

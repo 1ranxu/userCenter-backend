@@ -1,4 +1,4 @@
-package com.luoying.model.dto;
+package com.luoying.model.vo;
 
 import lombok.Data;
 
@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Data
-public class UserDTO implements Serializable {
+public class UserVO implements Serializable {
     private Long id;
 
     private String userAccount;

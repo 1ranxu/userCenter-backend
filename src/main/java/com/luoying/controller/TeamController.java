@@ -7,10 +7,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.luoying.common.ErrorCode;
 import com.luoying.common.Result;
 import com.luoying.exception.BusinessException;
-import com.luoying.model.dto.UserDTO;
-import com.luoying.model.request.TeamAddRequest;
-import com.luoying.model.request.TeamQueryRequest;
 import com.luoying.model.domain.Team;
+import com.luoying.model.request.TeamAddRequest;
+import com.luoying.model.request.TeamJoinRequest;
+import com.luoying.model.request.TeamQueryRequest;
+import com.luoying.model.request.TeamUpdateRequest;
+import com.luoying.model.vo.TeamUserVO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.service.TeamService;
 import com.luoying.service.UserService;
 import org.springframework.web.bind.annotation.*;
@@ -36,10 +39,10 @@ public class TeamController {
     @PostMapping("/add")
     public Result addTeam(@RequestBody TeamAddRequest teamAddRequest, HttpServletRequest request) {
         if (teamAddRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"teamAddRequest空值");
         }
         Team team = BeanUtil.copyProperties(teamAddRequest, Team.class);
-        UserDTO loginUser = userService.getLoginUser(request);
+        UserVO loginUser = userService.getLoginUser(request);
         long teamId = teamService.addTeam(team, loginUser);
         return Result.success(teamId);
     }
@@ -59,11 +62,13 @@ public class TeamController {
 
 
     @PostMapping("/update")
-    public Result updateTeam(@RequestBody Team team) {
-        if (team == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    public Result updateTeam(@RequestBody TeamUpdateRequest teamUpdateRequest,HttpServletRequest request) {
+        if (teamUpdateRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"teamUpdateRequest空值");
         }
-        boolean result = teamService.updateById(team);
+        UserVO loginUser = userService.getLoginUser(request);
+        boolean result = teamService.updateTeam(teamUpdateRequest,loginUser);
+
         if (!result) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新队伍失败");
         }
@@ -74,7 +79,7 @@ public class TeamController {
     @GetMapping("/get")
     public Result getTeamById(long id) {
         if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"id空值");
         }
         Team team = teamService.getById(id);
         if (team == null) {
@@ -84,13 +89,12 @@ public class TeamController {
     }
 
     @GetMapping("/list")
-    public Result getTeamList(TeamQueryRequest teamQueryRequest) {
+    public Result getTeamList(TeamQueryRequest teamQueryRequest,HttpServletRequest request) {
         if (teamQueryRequest == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "队伍不存在");
         }
-        Team newTeam = BeanUtil.copyProperties(teamQueryRequest, Team.class);
-        LambdaQueryWrapper<Team> queryWrapper = new LambdaQueryWrapper<>(newTeam);
-        List<Team> teamList = teamService.list(queryWrapper);
+        boolean isAdmin = userService.isAdmin(request);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest,isAdmin);
         return Result.success(teamList);
     }
 
@@ -104,5 +108,21 @@ public class TeamController {
         LambdaQueryWrapper<Team> queryWrapper = new LambdaQueryWrapper<>(newTeam);
         teamService.page(page, queryWrapper);
         return Result.success(page.getRecords());
+    }
+
+    @PostMapping("/join")
+    public Result joinTeam(@RequestBody TeamJoinRequest teamJoinRequest,HttpServletRequest request){
+        if (teamJoinRequest==null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"teamJoinRequest空值");
+        }
+        UserVO loginUser = userService.getLoginUser(request);
+
+        boolean result=teamService.joinTeam(teamJoinRequest,loginUser);
+
+        if (!result){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"加入队伍失败");
+        }
+
+        return Result.success(true);
     }
 }

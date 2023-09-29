@@ -24,7 +24,6 @@ import java.util.List;
  *
  * @author 落樱的悔恨
  */
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:8000"}, allowCredentials = "true")
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -52,12 +51,12 @@ public class UserController {
     @PostMapping("/login")
     public Result userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         if (userLoginRequest == null) {
-            throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象空值");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户登录请求对象空值");
         }
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户登录请求对象属性空值");
         }
         UserVO userVO = userService.userLogin(userAccount, userPassword, request);
         return Result.success(userVO);
@@ -110,6 +109,9 @@ public class UserController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "删除用户的id不能为小于等于0");
         }
         boolean result = userService.removeById(user.getId());
+        if (!result){
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除用户失败");
+        }
         return Result.success(result);
     }
 

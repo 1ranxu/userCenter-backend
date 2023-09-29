@@ -14,9 +14,9 @@ import com.luoying.constant.UserConstant;
 import com.luoying.exception.BusinessException;
 import com.luoying.mapper.UserMapper;
 import com.luoying.model.domain.User;
-import com.luoying.model.vo.UserVO;
 import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.vo.UserListVO;
+import com.luoying.model.vo.UserVO;
 import com.luoying.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -26,7 +26,10 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,7 +106,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user1.setAuthCode(authCode);
         boolean result = this.save(user1);
         if (!result) {
-            throw new BusinessException(ErrorCode.JDBC_ERROR, "数据库保存注册用户失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "数据库保存注册用户失败");
         }
         return user1.getId();
     }
@@ -112,7 +115,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public UserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.JDBC_ERROR, "用户登录请求对象属性空值");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户登录请求对象属性空值");
         }
         if (userAccount.length() < 4) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号长度小于4位");

@@ -8,9 +8,9 @@ public enum ErrorCode {
     SUCCESS(1, "OK", ""),
     PARAMS_ERROR(40000, "请求参数错误", ""),
     NULL_ERROR(40001, "请求数据空值", ""),
-    JDBC_ERROR(40002, "数据库操作错误", ""),
     NO_LOGIN(40100, "未登录", ""),
     NO_AUTH(40101, "无权限", ""),
+    FORBIDDEN(403100,"禁止访问",""),
     SYSTEM_ERROR(50000, "系统内部异常", "");
 
     /**

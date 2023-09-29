@@ -124,6 +124,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             //根据队伍id查询
             Long id = teamQueryRequest.getId();
             teamWrapper.eq(id != null && id > 0, Team::getId, id);
+            //根据id列表查询
+            List<Long> ids = teamQueryRequest.getIds();
+            teamWrapper.in(CollectionUtil.isNotEmpty(ids),Team::getId,ids);
             //根据搜索内容查询
             String searchText = teamQueryRequest.getSearchText();
             teamWrapper

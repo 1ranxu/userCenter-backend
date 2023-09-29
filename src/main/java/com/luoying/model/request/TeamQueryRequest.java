@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 队伍查询请求体
@@ -19,6 +20,10 @@ public class TeamQueryRequest extends PageRequest implements Serializable {
      * id
      */
     private Long id;
+    /**
+     * id列表
+     */
+    private List<Long> ids;
     /**
      *
      */

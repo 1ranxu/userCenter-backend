@@ -17,14 +17,21 @@ import com.luoying.model.vo.UserVO;
 import com.luoying.service.TeamService;
 import com.luoying.service.UserService;
 import com.luoying.service.UserTeamService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.luoying.constant.RedisConstant.JOINTEAM_DOJOIN_LOCK;
+import static com.luoying.constant.RedisConstant.PRECACHEJOB_DOCACHE_LOCK;
 
 /**
  * @author 落樱的悔恨
@@ -32,6 +39,7 @@ import java.util.stream.Collectors;
  * @createDate 2023-09-23 18:41:01
  */
 @Service
+@Slf4j
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         implements TeamService {
     private static final String SALT = "yingluo";
@@ -41,6 +49,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private RedissonClient redissonClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -85,31 +96,47 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         if (new Date().after(expireTime)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍已过期");
         }
+        // 只有一个线程能获取锁
+        RLock lock = redissonClient.getLock(JOINTEAM_DOJOIN_LOCK);
         //    7. 校验用户最多创建 5 个队伍
-        // todo 有bug，用户可能连续点100次，创建100个队伍 加分布式锁解决
-        LambdaQueryWrapper<Team> queryWrapper = new LambdaQueryWrapper<>();
-        Long userId = loginUser.getId();
-        queryWrapper.eq(Team::getUserId, userId);
-        long hasTeamNum = this.count(queryWrapper);
-        if (hasTeamNum >= 5) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "单个用户最多创建5个用户");
-        }
-        // 4. 插入队伍信息到队伍表
-        team.setUserId(userId);
-        boolean result = this.save(team);
         Long teamId = team.getId();
-        if (!result || teamId == null) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建队伍失败");
-        }
-        // 5. 插入用户 -队伍关系到关系表
-        UserTeam userTeam = new UserTeam();
-        userTeam.setUserId(userId);
-        userTeam.setTeamId(teamId);
-        userTeam.setJoinTime(new Date());
-        result = userTeamService.save(userTeam);
+        try {
+            while (true){
+                if (lock.tryLock(0,-1, TimeUnit.SECONDS)) {
+                    log.info("getLock");
+                    LambdaQueryWrapper<Team> queryWrapper = new LambdaQueryWrapper<>();
+                    Long userId = loginUser.getId();
+                    queryWrapper.eq(Team::getUserId, userId);
+                    long hasTeamNum = this.count(queryWrapper);
+                    if (hasTeamNum >= 5) {
+                        throw new BusinessException(ErrorCode.PARAMS_ERROR, "单个用户最多创建5个用户");
+                    }
+                    // 4. 插入队伍信息到队伍表
+                    team.setUserId(userId);
+                    boolean result = this.save(team);
 
-        if (!result) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建用户-队伍失败");
+                    if (!result || teamId == null) {
+                        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建队伍失败");
+                    }
+                    // 5. 插入用户 -队伍关系到关系表
+                    UserTeam userTeam = new UserTeam();
+                    userTeam.setUserId(userId);
+                    userTeam.setTeamId(teamId);
+                    userTeam.setJoinTime(new Date());
+                    result = userTeamService.save(userTeam);
+
+                    if (!result) {
+                        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建用户-队伍失败");
+                    }
+                }
+            }
+        } catch (InterruptedException e) {
+            log.error(e.getMessage());
+        } finally {
+            if (lock.isHeldByCurrentThread()){
+                log.info("getLock");
+                lock.unlock();
+            }
         }
         return teamId;
     }

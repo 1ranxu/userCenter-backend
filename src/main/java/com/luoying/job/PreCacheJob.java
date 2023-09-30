@@ -60,7 +60,7 @@ public class PreCacheJob {
                     }).collect(Collectors.toList());
                     //将查询到的数据添加到缓存
                     String userDTOListJson = JSONUtil.toJsonStr(userVOList);
-                    stringRedisTemplate.opsForValue().set(key, userDTOListJson, RECOMMEND_USUERS_KEY_TTL, TimeUnit.MINUTES);
+                    stringRedisTemplate.opsForValue().set(key, userDTOListJson, PRECACHEJOB_DOCACHE_LOCK_TTL, TimeUnit.MINUTES);
                 }
                 //只能释放自己加的锁
 

@@ -2,6 +2,7 @@ package com.luoying.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.lang.Pair;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -18,6 +19,7 @@ import com.luoying.model.request.UserQueryRequest;
 import com.luoying.model.vo.UserListVO;
 import com.luoying.model.vo.UserVO;
 import com.luoying.service.UserService;
+import com.luoying.utils.AlgorithmUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,10 +28,7 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -322,6 +321,59 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         userDTOListJson = JSON.toJSONString(userDTOList);
         stringRedisTemplate.opsForValue().set(key, userDTOListJson, 3, TimeUnit.MINUTES);
         return userDTOList;
+    }
+
+    @Override
+    public List<UserVO> usersMatch(long num, UserVO loginUser) {
+        //获取当前用户的标签列表
+        String loginUserTags = loginUser.getTags();
+        Gson gson = new Gson();
+        //把当前用户的标签列表转换成List集合
+        List<String> loginUserTagList = gson.fromJson(loginUserTags, new TypeToken<List<String>>() {
+        }.getType());
+
+        //查询所有标签字段不为空的用户，且只查用id和tags字段
+        LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
+        userWrapper.select(User::getId, User::getTags);
+        userWrapper.isNotNull(User::getTags);
+        List<User> users = this.list(userWrapper);
+        //用户==>相似度
+        List<Pair<User, Long>> list = new ArrayList<>();
+        //遍历查到的每个用户
+        for (User user : users) {
+            //获取用户的标签
+            String userTags = user.getTags();
+            //过滤掉无标签的用户和当前用户
+            if (StringUtils.isBlank(userTags) || user.getId().equals(loginUser.getId())) {
+                continue;
+            }
+            //把用户的标签列表转换成List集合
+            List<String> userTagList = gson.fromJson(userTags, new TypeToken<List<String>>() {
+            }.getType());
+            //使用编辑距离算法，计算出每个用户的标签和当前用户的标签的编辑距离
+            long distance = AlgorithmUtil.minDistance1(loginUserTagList, userTagList);
+            //存到list集合中
+            list.add(new Pair<>(user, distance));
+        }
+        //按编辑距离升序排序
+        List<Pair<User, Long>> topUserPairList = list.stream()
+                .sorted((p1, p2) -> (int) (p1.getValue() - p2.getValue()))
+                .limit(num).collect(Collectors.toList());
+        //从topUserPairList取出userId
+        List<Long> userIdList = topUserPairList.stream()
+                .map(pair -> pair.getKey().getId())
+                .collect(Collectors.toList());
+        userWrapper = new LambdaQueryWrapper<>();
+        userWrapper.in(User::getId,userIdList);
+        //根据userId查询用户，然后返回
+        Map<Long, List<UserVO>> userIdUserMap = this.list(userWrapper).stream()
+                .map(user -> BeanUtil.copyProperties(user, UserVO.class))
+                .collect(Collectors.groupingBy(UserVO::getId));
+        List<UserVO> finalUserList=new ArrayList<>();
+        for (Long userId : userIdList) {
+            finalUserList.add(userIdUserMap.get(userId).get(0));
+        }
+        return finalUserList;
     }
 }
 

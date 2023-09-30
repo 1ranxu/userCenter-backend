@@ -88,4 +88,12 @@ public interface UserService extends IService<User> {
      */
     List<UserVO> usersRecommend(long currentPage, long pageSize, HttpServletRequest request);
 
+    /**
+     * 获取与当前用户相似度最高的用户
+     * @param num
+     * @param loginUser
+     * @return
+     */
+    List<UserVO> usersMatch(long num, UserVO loginUser);
+
 }

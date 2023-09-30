@@ -1,6 +1,7 @@
 package com.luoying.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -183,6 +184,9 @@ public class TeamController {
         List<UserTeam> userTeamList = userTeamService.list(userTeamWrapper);
         //把用户-队伍关系根据队伍id分组，得到队伍-用户的映射map
         Map<Long, List<UserTeam>> listMap = userTeamList.stream().collect(Collectors.groupingBy(UserTeam::getTeamId));
+        if (CollectionUtil.isEmpty(listMap)){
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"无已加入的队伍");
+        }
         //从map中取出的keySet就是当前用户加入的队伍id列表
         ArrayList<Long> teamIdList = new ArrayList<>(listMap.keySet());
         //设置队伍id列表

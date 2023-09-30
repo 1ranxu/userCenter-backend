@@ -93,7 +93,7 @@ public class UserController {
         return Result.success(userListVO);
     }
 
-
+    // todo 匹配多个
     @GetMapping("/recommend")
     public Result usersRecommend(long currentPage, long pageSize, HttpServletRequest request) {
         //返回数据
@@ -133,5 +133,22 @@ public class UserController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签为空");
         }
         return Result.success(userService.queryUsersByTagsByMemory(tags));
+    }
+
+    /**
+     * 获取与当前用户相似度最高的用户
+     * @param num 需要匹配用户的个数
+     * @param request
+     * @return
+     */
+    @GetMapping("/match")
+    public Result usersMatch(long num, HttpServletRequest request) {
+        if (num<=0 || num >20){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //获取登录用户
+        UserVO loginUser = userService.getLoginUser(request);
+        //封装返回匹配的用户
+        return Result.success(userService.usersMatch(num,loginUser));
     }
 }

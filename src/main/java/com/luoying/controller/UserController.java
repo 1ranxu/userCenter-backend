@@ -132,7 +132,7 @@ public class UserController {
         if (CollectionUtil.isEmpty(tags)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "标签为空");
         }
-        return Result.success(userService.queryUsersByTagsByMemory(tags));
+        return Result.success(userService.queryUsersByTagsBySQL(tags));
     }
 
     /**

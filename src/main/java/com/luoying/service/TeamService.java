@@ -6,6 +6,7 @@ import com.luoying.model.request.*;
 import com.luoying.model.vo.TeamUserVO;
 import com.luoying.model.vo.UserVO;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -26,10 +27,11 @@ public interface TeamService extends IService<Team> {
      * 搜索队伍
      *
      * @param teamQueryRequest
+     * @param request
      * @param isAdmin
      * @return
      */
-    List<TeamUserVO> listTeams(TeamQueryRequest teamQueryRequest, boolean isAdmin);
+    List<TeamUserVO> listTeams(TeamQueryRequest teamQueryRequest, HttpServletRequest request, boolean isAdmin);
 
     /**
      * 修改队伍

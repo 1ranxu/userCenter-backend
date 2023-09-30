@@ -22,10 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import javax.servlet.http.HttpServletRequest;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author 落樱的悔恨
@@ -117,7 +116,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
 
     @Override
-    public List<TeamUserVO> listTeams(TeamQueryRequest teamQueryRequest, boolean isAdmin) {
+    public List<TeamUserVO> listTeams(TeamQueryRequest teamQueryRequest, HttpServletRequest request, boolean isAdmin) {
         LambdaQueryWrapper<Team> teamWrapper = new LambdaQueryWrapper<>();
         //组合队伍查询条件
         if (teamQueryRequest != null) {
@@ -167,37 +166,38 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         }
         //关联查询用户信息
         List<TeamUserVO> teamUserVOList = new ArrayList<>();
-        //遍历所有队伍
+        // 关联查询创建人的用户信息
         for (Team team : teamList) {
             TeamUserVO teamUserVO = BeanUtil.copyProperties(team, TeamUserVO.class);
-            //根据队伍id到用户-队伍表中查询队伍中有多少队员
-            LambdaQueryWrapper<UserTeam> userTeamWrapper = new LambdaQueryWrapper<>();
-            Long teamId = team.getId();
-            if (teamId == null) {
-                continue;
-            }
-            userTeamWrapper.eq(UserTeam::getTeamId, teamId);
-            List<UserTeam> userTeamList = userTeamService.list(userTeamWrapper);
-            //根据已查到的用户队伍关系记录中的userId查询队伍中的每个用户
-            List<UserVO> userVOList = new ArrayList<>();
-            for (UserTeam userTeam : userTeamList) {
-                LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
-                Long userId = userTeam.getUserId();
-                if (userId == null) {
-                    continue;
-                }
-                userWrapper.eq(User::getId, userId);
-                User user = userService.getOne(userWrapper);
-                //查询到地每个用户添加到teamUserVO的UserList中
-                if (user != null) {
-                    userVOList.add(BeanUtil.copyProperties(user, UserVO.class));
-                }
-            }
-            //userVOList封装teamUserVO
-            teamUserVO.setUserList(userVOList);
-            //添加队伍信息到teamUserVOList
+            User user = userService.getById(team.getUserId());
+            UserVO userVO = BeanUtil.copyProperties(user, UserVO.class);
+            teamUserVO.setCreateUser(userVO);
             teamUserVOList.add(teamUserVO);
         }
+        //获取所有队伍id
+        final List<Long> teamIdList = teamUserVOList.stream().map(TeamUserVO::getId).collect(Collectors.toList());
+        //判断当前用户是否已加入队伍
+        LambdaQueryWrapper<UserTeam> userTeamQueryWrapper = new LambdaQueryWrapper<>();
+        try {
+            UserVO loginUser = userService.getLoginUser(request);
+            userTeamQueryWrapper.eq(UserTeam::getUserId, loginUser.getId());
+            userTeamQueryWrapper.in(UserTeam::getTeamId, teamIdList);
+            List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
+            // 已加入的队伍 id 集合
+            Set<Long> hasJoinTeamIdSet = userTeamList.stream().map(UserTeam::getTeamId).collect(Collectors.toSet());
+            teamUserVOList.forEach(team -> {
+                boolean hasJoin = hasJoinTeamIdSet.contains(team.getId());
+                team.setHasJoin(hasJoin);
+            });
+        } catch (Exception e) {
+        }
+        //查询已加入队伍的人数
+        userTeamQueryWrapper = new LambdaQueryWrapper<>();
+        userTeamQueryWrapper.in(UserTeam::getTeamId, teamIdList);
+        List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
+        // 队伍 id => 加入这个队伍的用户列表
+        Map<Long, List<UserTeam>> teamIdUserTeamMap = userTeamList.stream().collect(Collectors.groupingBy(UserTeam::getTeamId));
+        teamUserVOList.forEach(team -> team.setHasJoinNum(teamIdUserTeamMap.getOrDefault(team.getId(), new ArrayList<>()).size()));
         return teamUserVOList;
     }
 

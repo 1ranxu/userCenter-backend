@@ -86,7 +86,7 @@ public class TeamController {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "队伍不存在");
         }
         boolean isAdmin = userService.isAdmin(request);
-        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest, isAdmin);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest, request, isAdmin);
         return Result.success(teamList);
     }
 
@@ -138,7 +138,7 @@ public class TeamController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "teamDeleteRequestko空值");
         }
         UserVO loginUser = userService.getLoginUser(request);
-        boolean result = teamService.deleteTeam(teamDeleteRequest,loginUser);
+        boolean result = teamService.deleteTeam(teamDeleteRequest, loginUser);
         if (!result) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "队长解散队伍失败");
         }
@@ -161,7 +161,7 @@ public class TeamController {
         //设置登录用户id
         teamQueryRequest.setUserId(loginUser.getId());
         //根据登录用户id查询该用户创建的队伍
-        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest, true);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest,request, true);
         return Result.success(teamList);
     }
 
@@ -179,20 +179,20 @@ public class TeamController {
         //获取当前登录用户
         UserVO loginUser = userService.getLoginUser(request);
         //根据登录用户id查询该用户的用户-队伍关系
-        LambdaQueryWrapper<UserTeam> userTeamWrapper=new LambdaQueryWrapper<>();
-        userTeamWrapper.eq(UserTeam::getUserId,loginUser.getId());
+        LambdaQueryWrapper<UserTeam> userTeamWrapper = new LambdaQueryWrapper<>();
+        userTeamWrapper.eq(UserTeam::getUserId, loginUser.getId());
         List<UserTeam> userTeamList = userTeamService.list(userTeamWrapper);
         //把用户-队伍关系根据队伍id分组，得到队伍-用户的映射map
         Map<Long, List<UserTeam>> listMap = userTeamList.stream().collect(Collectors.groupingBy(UserTeam::getTeamId));
-        if (CollectionUtil.isEmpty(listMap)){
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"无已加入的队伍");
+        if (CollectionUtil.isEmpty(listMap)) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "无已加入的队伍");
         }
         //从map中取出的keySet就是当前用户加入的队伍id列表
         ArrayList<Long> teamIdList = new ArrayList<>(listMap.keySet());
         //设置队伍id列表
         teamQueryRequest.setIds(teamIdList);
         //根据队伍id列表查询当前用户加入的队伍
-        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest, true);
+        List<TeamUserVO> teamList = teamService.listTeams(teamQueryRequest, request,true);
         return Result.success(teamList);
     }
 

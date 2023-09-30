@@ -153,7 +153,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             if (statusEnum == null) {
                 statusEnum = TeamStatusEnum.PUBLIC;
             }
-            if (!isAdmin && !statusEnum.equals(TeamStatusEnum.PUBLIC)) {
+
+            if (!isAdmin && statusEnum.equals(TeamStatusEnum.PRIVATE)) {
                 throw new BusinessException(ErrorCode.NO_AUTH, "无权限");
             }
             teamWrapper.eq(Team::getStatus, statusEnum.getValue());
@@ -191,12 +192,14 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             });
         } catch (Exception e) {
         }
-        //查询已加入队伍的人数
+        //查询已加入队伍的所有用户
         userTeamQueryWrapper = new LambdaQueryWrapper<>();
         userTeamQueryWrapper.in(UserTeam::getTeamId, teamIdList);
         List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
         // 队伍 id => 加入这个队伍的用户列表
         Map<Long, List<UserTeam>> teamIdUserTeamMap = userTeamList.stream().collect(Collectors.groupingBy(UserTeam::getTeamId));
+        //给每个队伍设置队伍人数
+        //getOrDefault是map的一个方法，如果这个键teamId的vlaue为null没有队员，就给个空集合
         teamUserVOList.forEach(team -> team.setHasJoinNum(teamIdUserTeamMap.getOrDefault(team.getId(), new ArrayList<>()).size()));
         return teamUserVOList;
     }

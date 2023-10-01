@@ -96,10 +96,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         if (new Date().after(expireTime)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍已过期");
         }
-        // 只有一个线程能获取锁
-        RLock lock = redissonClient.getLock(JOINTEAM_DOJOIN_LOCK);
-        //    7. 校验用户最多创建 5 个队伍
         Long teamId = team.getId();
+        // 只有一个线程能获取锁
+        RLock lock = redissonClient.getLock(JOINTEAM_DOJOIN_LOCK+":"+teamId);
+        //    7. 校验用户最多创建 5 个队伍
         try {
             while (true){
                 if (lock.tryLock(0,-1, TimeUnit.SECONDS)) {
@@ -178,13 +178,15 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             Integer status = teamQueryRequest.getStatus();
             TeamStatusEnum statusEnum = TeamStatusEnum.getEnumByValue(status);
             if (statusEnum == null) {
-                statusEnum = TeamStatusEnum.PUBLIC;
+                //如果队伍状态没传，公开加密都可以查
+                teamWrapper.in(Team::getStatus, TeamStatusEnum.PUBLIC.getValue(),TeamStatusEnum.SECRET.getValue());
+            }else {
+                //如果队伍状态传了,就根据队伍状态查
+                teamWrapper.eq(Team::getStatus, statusEnum.getValue());
             }
-
             if (!isAdmin && statusEnum.equals(TeamStatusEnum.PRIVATE)) {
                 throw new BusinessException(ErrorCode.NO_AUTH, "无权限");
             }
-            teamWrapper.eq(Team::getStatus, statusEnum.getValue());
 
         }
         //查询队伍

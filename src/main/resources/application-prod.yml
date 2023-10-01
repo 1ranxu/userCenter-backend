@@ -3,11 +3,11 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
     url: jdbc:mysql://localhost:3306/user_center?useSSL=false #使用虚拟机模拟远程服务器（没钱）
     username: root
-    password: root
+    password: 115474287Zxcczld
   redis:
     host: 127.0.0.1
     port: 6379
-    password: 123
+    password: 115474287Zxcczld
     database: 0
     lettuce:
       pool:
